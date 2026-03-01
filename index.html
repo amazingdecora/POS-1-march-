@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazing Decora - Management System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Dexie.js -->
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#15803d">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#15803d', // green-700
+                        secondary: '#f97316', // orange-500
+                        dark: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-100 text-gray-800 antialiased h-screen overflow-hidden flex">
+
+    <!-- SIDEBAR (Desktop) -->
+    <aside class="hidden md:flex w-64 bg-green-900 text-white flex-col shadow-2xl z-20 no-print">
+        <div class="p-6 border-b border-green-800">
+            <h1 class="text-2xl font-bold tracking-tighter flex items-center space-x-2">
+                <i class="fas fa-leaf text-green-400"></i>
+                <span class="uppercase">Amazing Decora</span>
+            </h1>
+            <p class="text-xs text-green-300 mt-1 uppercase tracking-widest">Management System</p>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+            <button onclick="switchTab('admin')" data-tab="admin"
+                class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl bg-green-700 text-white transition hover:bg-green-800">
+                <i class="fas fa-chart-line w-6"></i>
+                <span class="font-medium">Admin Dashboard</span>
+            </button>
+            <button onclick="switchTab('workshop')" data-tab="workshop"
+                class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-green-100 transition hover:bg-green-800">
+                <i class="fas fa-hammer w-6"></i>
+                <span class="font-medium">Workshop (කර්මාන්තශාලා)</span>
+            </button>
+        </nav>
+
+        <div class="p-4 bg-green-950 text-xs text-green-400 text-center">
+            &copy; 2026 Amazing Decora
+        </div>
+    </aside>
+
+    <!-- MOBILE BOTTOM NAV -->
+    <nav
+        class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-40 flex justify-around p-2 no-print">
+        <button onclick="switchTab('admin')" data-tab="admin"
+            class="nav-btn nav-btn-mobile flex flex-col items-center justify-center w-full py-2 text-green-700">
+            <i class="fas fa-chart-line text-xl mb-1"></i>
+            <span class="text-xs font-bold">Admin</span>
+        </button>
+        <button onclick="switchTab('workshop')" data-tab="workshop"
+            class="nav-btn nav-btn-mobile flex flex-col items-center justify-center w-full py-2 text-gray-400">
+            <i class="fas fa-hammer text-xl mb-1"></i>
+            <span class="text-xs font-bold">Workshop</span>
+        </button>
+    </nav>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 h-screen overflow-y-auto relative scroll-smooth p-4 md:p-10 pb-24 md:pb-10 no-print">
+
+        <!-- ADMIN SECTION -->
+        <div id="admin-section" class="max-w-7xl mx-auto space-y-6 md:space-y-8 animate-fade-in">
+
+            <!-- Header -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-2">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Admin Dashboard</h2>
+                    <p class="text-xs md:text-base text-gray-500">Manage orders, specific expenses, and inventory.</p>
+                </div>
+                <div class="flex items-center space-x-2 self-end md:self-auto">
+                    <span class="bg-white px-3 py-1 rounded-full shadow-sm text-sm font-medium text-gray-600">
+                        <i class="far fa-calendar-alt mr-2"></i> <span id="currentDateDisplay"></span>
+                    </span>
+                    <script>document.getElementById('currentDateDisplay').textContent = new Date().toLocaleDateString();</script>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                <!-- Pending Orders Card -->
+                <div
+                    class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                    <div class="p-3 md:p-4 bg-orange-100 text-orange-600 rounded-xl">
+                        <i class="fas fa-clock text-xl md:text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-xs md:text-sm font-medium">Pending Orders</p>
+                        <h3 class="text-2xl md:text-3xl font-bold text-gray-800" id="stat-pending">0</h3>
+                    </div>
+                </div>
+
+                <!-- Completed Orders Card (Clickable) -->
+                <button onclick="openCompletedOrdersModal()"
+                    class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4 hover:shadow-md transition text-left w-full group">
+                    <div class="p-3 md:p-4 bg-green-100 text-green-600 rounded-xl group-hover:bg-green-200 transition">
+                        <i class="fas fa-check-circle text-xl md:text-2xl"></i>
+                    </div>
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-gray-500 text-xs md:text-sm font-medium">Completed Orders</p>
+                        <div class="flex items-end gap-2 truncate">
+                            <h3 class="text-2xl md:text-3xl font-bold text-gray-800" id="stat-completed">0</h3>
+                            <span id="completedOrdersTotal" class="text-sm font-black text-green-700 mb-1 truncate">Rs
+                                0.00</span>
+                        </div>
+                        <span class="text-xs text-green-600 font-bold underline mt-1 block">View History</span>
+                    </div>
+                </button>
+
+                <!-- Expenses Card -->
+                <button onclick="openExpenseReportModal()"
+                    class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4 hover:shadow-md transition text-left w-full group">
+                    <div class="p-3 md:p-4 bg-red-100 text-red-600 rounded-xl group-hover:bg-red-200 transition">
+                        <i class="fas fa-wallet text-xl md:text-2xl"></i>
+                    </div>
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-gray-500 text-xs md:text-sm font-medium">Total Expenses</p>
+                        <div class="flex items-end gap-2 truncate">
+                            <h3 class="text-xl md:text-2xl font-bold text-gray-800 truncate" id="stat-expenses">Rs 0.00
+                            </h3>
+                        </div>
+                        <span class="text-xs text-red-600 font-bold underline mt-1 block">View Reports</span>
+                    </div>
+                </button>
+
+                <!-- Analytics Card -->
+                <button onclick="openExternalAnalytics()"
+                    class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4 hover:shadow-md transition text-left w-full group">
+                    <div
+                        class="p-3 md:p-4 bg-purple-100 text-purple-600 rounded-xl group-hover:bg-purple-200 transition">
+                        <i class="fas fa-chart-bar text-xl md:text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-xs md:text-sm font-medium">Sales Analytics</p>
+                        <div class="flex items-end gap-2">
+                            <span class="text-purple-600 font-bold text-sm">View Charts</span>
+                        </div>
+                    </div>
+                </button>
+
+                <!-- Attendance Card (New) -->
+                <button onclick="openAttendanceReportModal()"
+                    class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4 hover:shadow-md transition text-left w-full group">
+                    <div class="p-3 md:p-4 bg-blue-100 text-blue-600 rounded-xl group-hover:bg-blue-200 transition">
+                        <i class="fas fa-users text-xl md:text-2xl"></i>
+                    </div>
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-gray-500 text-xs md:text-sm font-medium">Staff Attendance</p>
+                        <div class="flex items-end gap-2">
+                            <h3 class="text-xl md:text-2xl font-bold text-gray-800" id="stat-attendance">0</h3>
+                        </div>
+                        <span class="text-blue-600 font-bold text-xs underline mt-1 block">Monthly Report</span>
+                    </div>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+                <!-- NEW ORDER FORM -->
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+                    <h3 class="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6 flex items-center">
+                        <span class="bg-green-100 text-green-700 p-2 rounded-lg mr-3"><i class="fas fa-plus"></i></span>
+                        Create New Order
+                    </h3>
+                    <form id="orderForm" class="space-y-4">
+                        <!-- Customer Details Section -->
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-bold text-gray-800 flex items-center">
+                                    <i class="fas fa-user mr-2 text-blue-600"></i>
+                                    Customer Details
+                                </h4>
+                                <button type="button" onclick="openCustomerManagerModal()"
+                                    class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg transition">
+                                    <i class="fas fa-users mr-1"></i> Manage Customers
+                                </button>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Customer Details (Name, Address, Phone) *
+                                    </label>
+                                    <p class="text-xs text-gray-500 mb-2">
+                                        Paste details from WhatsApp or select a saved customer
+                                    </p>
+                                    <textarea id="customerDetailsUnified" rows="4"
+                                        class="w-full bg-white border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-green-500 outline-none transition font-mono text-sm"
+                                        required placeholder="John Doe
+No 5, Flower Rd, Colombo.
+077-1234567"></textarea>
+                                </div>
+                                <div id="savedCustomersList" class="flex flex-wrap gap-2">
+                                    <!-- Saved customers will appear here as quick-select buttons -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Items Catalogue Section -->
+                        <div class="bg-green-50 p-4 rounded-xl border border-green-200">
+                            <h4 class="font-bold text-gray-800 mb-3 flex items-center justify-between">
+                                <span>
+                                    <i class="fas fa-shopping-cart mr-2 text-green-600"></i>
+                                    Select Items
+                                </span>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="openProductManagerModal()"
+                                        class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg transition">
+                                        <i class="fas fa-box-open mr-1"></i> Products
+                                    </button>
+                                    <button type="button" onclick="openPriceManagerModal()"
+                                        class="text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg transition">
+                                        <i class="fas fa-tag mr-1"></i> Prices
+                                    </button>
+                                </div>
+                            </h4>
+                            <div id="itemsCatalogue"
+                                class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-2">
+                                <!-- Items will be rendered here -->
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-green-300">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-gray-700">Total Order Value:</span>
+                                    <span id="orderTotalValue" class="text-2xl font-bold text-green-700">Rs 0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
+                            <select id="payStatus"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-green-500 outline-none transition">
+                                <option value="Paid">Paid (මුදල් ගෙවා ඇත)</option>
+                                <option value="Not Paid">Not Paid (මුදල් ගෙවා නැත)</option>
+                            </select>
+                        </div>
+
+                        <div class="flex justify-end mt-2">
+                            <button type="submit"
+                                class="w-full md:w-auto bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-xl transition flex items-center justify-center shadow-lg transform hover:-translate-y-1">
+                                <span>Send to Workshop</span>
+                                <i class="fas fa-paper-plane ml-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- SIDE COLUMN: EXPENSES & STOCK -->
+                <div class="space-y-6 md:space-y-8">
+                    <!-- EXPENSES -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+                        <h3 class="text-lg md:text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="bg-red-100 text-red-700 p-2 rounded-lg mr-3"><i
+                                    class="fas fa-receipt"></i></span>
+                            Quick Expenses
+                        </h3>
+                        <div id="expenseCategoryButtons" class="grid grid-cols-2 gap-2 mb-3">
+                            <!-- Category buttons will be rendered here -->
+                        </div>
+                        <button onclick="openNewExpenseModal()"
+                            class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg text-sm font-medium transition">
+                            <i class="fas fa-plus mr-1"></i> New Expense
+                        </button>
+                        <div id="expenseList" class="mt-4 space-y-2 max-h-60 overflow-y-auto pr-1">
+                            <!-- Expenses render here -->
+                        </div>
+                    </div>
+
+                    <!-- STOCK PREVIEW -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg md:text-xl font-bold text-gray-800 flex items-center">
+                                <span class="bg-blue-100 text-blue-700 p-2 rounded-lg mr-3"><i
+                                        class="fas fa-boxes"></i></span>
+                                Current Stock
+                            </h3>
+                            <button onclick="saveAdminStock()"
+                                class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition font-bold shadow-sm">
+                                <i class="fas fa-save mr-1"></i> Save Stock
+                            </button>
+                        </div>
+                        <div id="stockList" class="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-1">
+                            <!-- Stock renders here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        </div>
+        </div>
+
+        <!-- WORKSHOP SECTION -->
+        <div id="workshop-section" class="hidden max-w-7xl mx-auto h-full flex flex-col">
+            <header
+                class="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div class="text-center md:text-left mb-4 md:mb-0">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Workshop Interface</h2>
+                    <h3 class="text-lg md:text-xl text-orange-600 font-sinhala font-medium">කර්මාන්තශාලා අතුරුමුහුණත
+                    </h3>
+                </div>
+                <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                    <button onclick="openAttendanceModal()"
+                        class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg transition transform hover:scale-105 flex items-center justify-center space-x-2">
+                        <i class="fas fa-user-check text-xl"></i>
+                        <span class="font-bold">අද වැඩට ආපු අය</span>
+                    </button>
+                    <button onclick="openProductionModal()"
+                        class="w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl shadow-lg transition transform hover:scale-105 flex items-center justify-center space-x-2">
+                        <i class="fas fa-plus-circle text-xl"></i>
+                        <span class="font-bold">දවස තුල කරන ලද නිශ්පාදන</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-y-auto flex flex-col lg:flex-row gap-6">
+                <!-- PENDING ORDERS -->
+                <div class="flex-1">
+                    <h3
+                        class="text-lg md:text-xl font-bold text-gray-700 mb-4 border-b border-gray-200 pb-2 flex items-center">
+                        <i class="fas fa-tasks mr-2 text-gray-400"></i> Pending Orders (මීලඟ ඇණවුම්)
+                    </h3>
+                    <div id="workshopOrdersList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 pb-20">
+                        <!-- Orders Render Here -->
+                    </div>
+                </div>
+
+                <!-- STOCK PREVIEW -->
+                <div class="w-full lg:w-[320px] flex-shrink-0">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 sticky top-4">
+                        <h3
+                            class="text-lg md:text-xl font-bold text-gray-800 mb-4 flex items-center border-b border-gray-100 pb-2">
+                            <span class="bg-blue-100 text-blue-700 p-2 rounded-lg mr-3"><i
+                                    class="fas fa-boxes"></i></span>
+                            Current Stock
+                        </h3>
+                        <div id="workshopStockList" class="grid grid-cols-1 gap-2 max-h-[60vh] overflow-y-auto pr-1">
+                            <!-- Stock renders here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL: PRODUCTION ENTRY -->
+    <div id="productionModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Enter Daily Production</h2>
+                    <p class="text-gray-500 text-sm">Update inventory with today's manufactured items</p>
+                </div>
+                <button onclick="closeProductionModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="prodEntryForm" class="flex flex-col flex-1 overflow-hidden">
+                <div id="prodInputs"
+                    class="flex-1 overflow-y-auto p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- Inputs render here -->
+                </div>
+                <div class="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+                    <button type="submit"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition transform hover:-translate-y-1">
+                        SAVE DATA (දත්ත සුරකින්න)
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: COMPLETED ORDERS -->
+    <div id="completedOrdersModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Completed Orders History</h2>
+                    <p class="text-gray-500 text-sm">Archive of all delivered and paid orders</p>
+                </div>
+                <button onclick="closeCompletedOrdersModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="px-6 py-4 border-b border-gray-50 bg-gray-50 flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-1 grid grid-cols-2 gap-3 w-full">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">From Date</label>
+                        <input type="date" id="orderReportFrom"
+                            class="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm shadow-sm focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">To Date</label>
+                        <input type="date" id="orderReportTo"
+                            class="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm shadow-sm focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button onclick="renderCompletedOrders()"
+                        class="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md">
+                        <i class="fas fa-filter mr-1"></i> Filter
+                    </button>
+                    <button onclick="printOrderReport()"
+                        class="flex-1 md:flex-none bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md">
+                        <i class="fas fa-print mr-1"></i> Print
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6">
+                <div id="completedOrdersList" class="space-y-4">
+                    <!-- Completed Orders List Renders Here -->
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-100 bg-green-50 rounded-b-2xl flex justify-between items-center">
+                <span class="text-lg font-bold text-gray-700">Total Completed Value:</span>
+                <span id="completedOrdersTotalValue" class="text-2xl font-black text-green-700">Rs 0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EXPENSE REPORTS -->
+    <div id="expenseReportModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Monthly Expense Reports</h2>
+                    <p class="text-gray-500 text-sm">Summary of expenses by month</p>
+                </div>
+                <button onclick="closeExpenseReportModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="px-6 py-4 border-b border-gray-50 bg-gray-50 flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-1 grid grid-cols-2 gap-3 w-full">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">From Date</label>
+                        <input type="date" id="expenseReportFrom"
+                            class="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm shadow-sm focus:ring-2 focus:ring-red-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">To Date</label>
+                        <input type="date" id="expenseReportTo"
+                            class="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm shadow-sm focus:ring-2 focus:ring-red-500 outline-none">
+                    </div>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto flex-wrap justify-end">
+                    <button onclick="renderExpenseReports()"
+                        class="flex-1 md:flex-none bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md">
+                        <i class="fas fa-filter mr-1"></i> Filter
+                    </button>
+                    <button onclick="printExpenseReport()"
+                        class="flex-1 md:flex-none bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md">
+                        <i class="fas fa-print mr-1"></i> Print
+                    </button>
+                    <button onclick="toggleExpenseChart()"
+                        class="flex-1 md:flex-none bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md">
+                        <i class="fas fa-chart-bar mr-1"></i> Chart
+                    </button>
+                    <button onclick="printExpenseChart()"
+                        class="hidden flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md"
+                        id="printExpenseChartBtn">
+                        <i class="fas fa-print mr-1"></i> Print Chart
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 flex flex-col">
+                <div id="expenseReportList" class="space-y-4">
+                    <!-- Expense Reports Render Here -->
+                </div>
+                <div id="expenseChartContainer" class="hidden w-full h-[300px] mt-6">
+                    <canvas id="expenseChart"></canvas>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-100 bg-red-50 rounded-b-2xl flex justify-between items-center">
+                <span class="text-lg font-bold text-gray-700">Total Expenses:</span>
+                <span id="expenseReportTotalValue" class="text-2xl font-black text-red-700">Rs 0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PRICE MANAGER -->
+    <div id="priceManagerModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Price Manager</h2>
+                    <p class="text-gray-500 text-sm">Update item prices for offer seasons</p>
+                </div>
+                <button onclick="closePriceManagerModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6">
+                <div id="priceManagerList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Price inputs will be rendered here -->
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+                <button onclick="savePrices()"
+                    class="w-full bg-orange-600 hover:bg-orange-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition transform hover:-translate-y-1">
+                    <i class="fas fa-save mr-2"></i> SAVE ALL PRICES
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CUSTOMER MANAGER -->
+    <div id="customerManagerModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Customer Manager</h2>
+                    <p class="text-gray-500 text-sm">Manage recurring customers</p>
+                </div>
+                <button onclick="closeCustomerManagerModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6">
+                <div class="mb-4">
+                    <button onclick="showAddCustomerForm()"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold transition">
+                        <i class="fas fa-user-plus mr-2"></i> Add New Customer
+                    </button>
+                </div>
+                <div id="addCustomerForm" class="hidden mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 class="font-bold mb-3">New Customer</h4>
+                    <div class="space-y-2">
+                        <input type="text" id="newCustomerName" placeholder="Customer Name"
+                            class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                        <textarea id="newCustomerAddress" placeholder="Address" rows="2"
+                            class="w-full border border-gray-300 rounded-lg p-2 text-sm"></textarea>
+                        <input type="tel" id="newCustomerPhone" placeholder="Phone Number"
+                            class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                        <div class="flex gap-2">
+                            <button onclick="saveNewCustomer()"
+                                class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm">
+                                Save
+                            </button>
+                            <button onclick="hideAddCustomerForm()"
+                                class="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg text-sm">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="customersList" class="space-y-3">
+                    <!-- Customers list will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: NEW EXPENSE -->
+    <div id="newExpenseModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">New Expense</h2>
+                    <p class="text-gray-500 text-sm">Add a custom expense category</p>
+                </div>
+                <button onclick="closeNewExpenseModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="newExpenseForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+                        <input type="text" id="newExpenseCategory" placeholder="e.g., Office Supplies"
+                            class="w-full border border-gray-300 rounded-lg p-2.5" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount (Rs)</label>
+                        <input type="number" id="newExpenseAmount" placeholder="0.00" step="0.01"
+                            class="w-full border border-gray-300 rounded-lg p-2.5" required>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-bold transition">
+                        <i class="fas fa-save mr-2"></i> Save Expense
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ATTENDANCE -->
+    <div id="attendanceModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">අද වැඩට ආපු අය</h2>
+                    <p class="text-gray-500 text-sm">Today's Attendance - <span id="attendanceDate"></span></p>
+                </div>
+                <button onclick="closeAttendanceModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6">
+                <div class="mb-4">
+                    <button onclick="showAddEmployeeForm()"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-user-plus mr-1"></i> Add New Employee
+                    </button>
+                </div>
+                <div id="addEmployeeForm" class="hidden mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <input type="text" id="newEmployeeName" placeholder="Employee Name (Sinhala)"
+                        class="w-full border border-gray-300 rounded-lg p-2 text-sm mb-2">
+                    <div class="flex gap-2">
+                        <button onclick="saveNewEmployee()"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm">
+                            Save
+                        </button>
+                        <button onclick="hideAddEmployeeForm()"
+                            class="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg text-sm">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+                <div id="employeeAttendanceList" class="grid grid-cols-1 gap-3">
+                    <!-- Employee attendance checkboxes will be rendered here -->
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex gap-3">
+                <button onclick="printAttendance()"
+                    class="flex-1 bg-gray-800 hover:bg-black text-white py-3 rounded-lg font-bold transition">
+                    <i class="fas fa-print mr-2"></i> Print
+                </button>
+                <button onclick="saveAttendance()"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold transition">
+                    <i class="fas fa-save mr-2"></i> Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ORDER DETAILS (Pending Improvements) -->
+    <div id="orderDetailsModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Order Details</h2>
+                    <p class="text-gray-500 text-sm">Full list of items requested</p>
+                </div>
+                <button onclick="closeOrderDetailsModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="orderDetailsContent" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <!-- Content renders here -->
+            </div>
+            <div class="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end">
+                <button onclick="closeOrderDetailsModal()"
+                    class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PRODUCT MANAGER -->
+    <div id="productManagerModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Product Manager</h2>
+                    <p class="text-gray-500 text-sm">Add new products or delete existing ones</p>
+                </div>
+                <button onclick="closeProductManagerModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- Add New Product Form -->
+                <div class="bg-green-50 p-4 rounded-xl border border-green-200 mb-6">
+                    <h4 class="font-bold text-green-800 mb-3"><i class="fas fa-plus-circle mr-2"></i>Add New Product
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <input type="text" id="newProdName" placeholder="Product Name (e.g., 5.0 ft Wood)"
+                            class="border border-gray-300 rounded-lg p-2">
+                        <input type="number" id="newProdPrice" placeholder="Price (Rs)"
+                            class="border border-gray-300 rounded-lg p-2">
+                        <button onclick="addNewProduct()"
+                            class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition">
+                            Add Product
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Product List -->
+                <div id="productListManager" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- Products render here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SALES ANALYTICS -->
+    <div id="salesAnalyticsModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Sales Analytics</h2>
+                    <p class="text-gray-500 text-sm">Visual sales reports</p>
+                </div>
+                <button onclick="closeAnalyticsModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4 bg-gray-50 flex gap-4 items-end border-b border-gray-100">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">From</label>
+                    <input type="date" id="chartFrom" class="border border-gray-300 rounded-lg p-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">To</label>
+                    <input type="date" id="chartTo" class="border border-gray-300 rounded-lg p-2 text-sm">
+                </div>
+                <button onclick="renderSalesChart()"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">
+                    <i class="fas fa-sync-alt mr-1"></i> Update Chart
+                </button>
+                <button onclick="printChart()" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold text-sm">
+                    <i class="fas fa-print mr-1"></i> Print/Save
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 flex justify-center items-center bg-white">
+                <div class="w-full h-[400px] md:h-[500px]">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ATTENDANCE REPORT -->
+    <div id="attendanceReportModal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden justify-center items-center p-4">
+        <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div
+                class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Monthly Attendance Report</h2>
+                    <p class="text-gray-500 text-sm">Employee attendance summary for salary calculation</p>
+                </div>
+                <button onclick="closeAttendanceReportModal()"
+                    class="w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="px-6 py-4 border-b border-gray-50 bg-gray-50 flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-1 grid grid-cols-2 gap-3 w-full">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">From Date</label>
+                        <input type="date" id="attendanceFromDate"
+                            class="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">To Date</label>
+                        <input type="date" id="attendanceToDate"
+                            class="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button onclick="renderAttendanceReport()"
+                        class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md">
+                        <i class="fas fa-filter mr-1"></i> Filter
+                    </button>
+                    <button onclick="printAttendanceReport()"
+                        class="flex-1 md:flex-none bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md">
+                        <i class="fas fa-file-pdf mr-1"></i> Print/PDF
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6">
+                <div id="attendanceReportList" class="space-y-4">
+                    <!-- Attendance Reports Render Here -->
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-100 bg-blue-50 rounded-b-2xl">
+                <p class="text-center text-sm text-blue-800 font-medium">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Calculate salary based on "Days Present" count.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADMIN LOGIN -->
+    <div id="adminLoginModal" class="fixed inset-0 bg-gray-900 z-[100] hidden justify-center items-center p-4">
+        <div
+            class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 md:p-8 animate-fade-in flex flex-col md:flex-row gap-6">
+            <!-- Workshop Button -->
+            <button onclick="switchToWorkshop()"
+                class="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-700 p-8 rounded-2xl transition flex flex-col items-center justify-center space-y-4 group border border-orange-200 shadow-sm relative overflow-hidden">
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-orange-400/10 to-orange-600/10 opacity-0 group-hover:opacity-100 transition duration-500">
+                </div>
+                <i
+                    class="fas fa-hammer text-6xl group-hover:scale-110 group-hover:-rotate-12 transition duration-500"></i>
+                <div class="text-center relative z-10">
+                    <span class="block text-2xl font-black tracking-tight mb-1">Workshop</span>
+                    <span class="block text-sm font-bold font-sinhala opacity-80">කර්මාන්තශාලා අතුරුමුහුණත</span>
+                </div>
+            </button>
+
+            <!-- Admin Login -->
+            <div
+                class="flex-1 flex flex-col justify-center border-t md:border-t-0 md:border-l border-gray-100 pt-6 md:pt-0 md:pl-8">
+                <div class="text-center mb-6">
+                    <div
+                        class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                        <i class="fas fa-user-shield text-3xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-black text-gray-800 tracking-tight">Admin</h2>
+                    <p class="text-sm text-gray-500 font-medium">Please login to access</p>
+                </div>
+                <form id="adminLoginForm" class="space-y-4">
+                    <input type="text" id="adminUsername" placeholder="Username"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-green-500 focus:bg-white outline-none transition text-sm font-medium"
+                        required>
+                    <input type="password" id="adminPassword" placeholder="Password"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-green-500 focus:bg-white outline-none transition text-sm font-medium"
+                        required>
+                    <button type="submit"
+                        class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-xl transition shadow-lg transform hover:-translate-y-1">
+                        Login
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINT AREA -->
+    <div id="printArea" class="print-only"></div>
+
+    <!-- SCRIPTS -->
+    <script src="db.js"></script>
+    <script src="app.js"></script>
+    <script src="new-features.js"></script>
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>
