@@ -4,15 +4,15 @@ services:
     container_name: amazing-decora-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: amazing_decora
-      POSTGRES_USER: amazing_user
-      POSTGRES_PASSWORD: amazing_pass
+      POSTGRES_DB: ${POSTGRES_DB:-amazing_decora}
+      POSTGRES_USER: ${POSTGRES_USER:-amazing_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-amazing_pass}
     ports:
       - "${HOST_PG_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U amazing_user -d amazing_decora"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 3s
       timeout: 5s
       retries: 5
@@ -25,10 +25,10 @@ services:
     restart: unless-stopped
     environment:
       PORT: 4000
-      CORS_ORIGIN: http://localhost:8080
-      DATABASE_URL: postgres://amazing_user:amazing_pass@db:5432/amazing_decora
-      JWT_SECRET: change-this-in-prod
-      ADMIN_DEFAULT_PASSWORD: admin123
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      DATABASE_URL: postgres://${POSTGRES_USER:-amazing_user}:${POSTGRES_PASSWORD:-amazing_pass}@db:5432/${POSTGRES_DB:-amazing_decora}
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-prod}
+      ADMIN_DEFAULT_PASSWORD: ${ADMIN_DEFAULT_PASSWORD:-admin123}
     # Host port 4001 avoids clash with local `npm run dev` on 4000.
     # Use the app at http://localhost:8080 — nginx proxies /api to this service.
     ports:

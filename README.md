@@ -37,6 +37,10 @@ EXTRA_LOCAL_PORT=15432 ./scripts/dbeaver-postgres-forward.sh
 
 Use **Git Bash** or **WSL** on Windows to run the `.sh` file.
 
+### Deploy to AWS Lightsail
+
+See **[docs/deploy-lightsail.md](docs/deploy-lightsail.md)** for one-time instance setup, `.env` on the server, and the **GitHub Actions** pipeline (`.github/workflows/deploy-lightsail.yml`) that runs `git pull` + `docker compose up --build -d` over SSH.
+
 ### Docker not starting?
 
 - **`bind: ... 4000 ... already permitted`** — Something else is using port 4000 (often the backend from `npm run dev`). This compose file maps the API to host port **4001** instead. Rebuild and start again: `docker compose up --build -d`.

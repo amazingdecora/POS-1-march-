@@ -1,0 +1,61 @@
+# Deploy this Docker Compose stack to an existing Ubuntu + Docker host (e.g. AWS Lightsail).
+#
+# Required GitHub repository secrets:
+#   LIGHTSAIL_HOST     — Public IPv4 or DNS name of the instance
+#   LIGHTSAIL_USER     — SSH user (often `ubuntu` on Ubuntu images)
+#   LIGHTSAIL_SSH_KEY  — Private key (full PEM), the pair for the Lightsail key you downloaded
+#
+# Optional:
+#   LIGHTSAIL_SSH_PORT — Default 22
+#   LIGHTSAIL_APP_PATH — Absolute path on the server where the repo was cloned (e.g. /home/ubuntu/pos/POS-1-march-)
+
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-lightsail
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            APP_PATH="${{ secrets.LIGHTSAIL_APP_PATH }}"
+            if [ -z "${APP_PATH}" ]; then
+              APP_PATH="$HOME/pos/POS-1-march-"
+            fi
+            if [ ! -d "$APP_PATH/.git" ]; then
+              echo "ERROR: $APP_PATH is not a git clone. On the server once: git clone <repo> $APP_PATH && cp .env.deploy.example $APP_PATH/.env"
+              exit 1
+            fi
+            cd "$APP_PATH"
+            git fetch origin
+            if git show-ref --verify --quiet refs/remotes/origin/main; then
+              git checkout main
+              git pull origin main
+            elif git show-ref --verify --quiet refs/remotes/origin/master; then
+              git checkout master
+              git pull origin master
+            else
+              echo "ERROR: No origin/main or origin/master on server clone."
+              exit 1
+            fi
+            if docker compose version >/dev/null 2>&1; then
+              docker compose up --build -d
+            else
+              docker-compose up --build -d
+            fi
+            docker compose ps 2>/dev/null || docker-compose ps
