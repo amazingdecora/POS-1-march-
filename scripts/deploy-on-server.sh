@@ -17,11 +17,15 @@ git fetch "${REMOTE}" "${BRANCH}"
 git checkout "${BRANCH}"
 git pull "${REMOTE}" "${BRANCH}"
 
-echo "Building and restarting stack..."
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+
+echo "Pulling prebuilt images and restarting stack using ${COMPOSE_FILE}..."
 if docker compose version >/dev/null 2>&1; then
-  docker compose up --build -d
+  docker compose -f "${COMPOSE_FILE}" pull
+  docker compose -f "${COMPOSE_FILE}" up -d
 else
-  docker-compose up --build -d
+  docker-compose -f "${COMPOSE_FILE}" pull
+  docker-compose -f "${COMPOSE_FILE}" up -d
 fi
 
 echo "Done. Check: curl -sS \"http://127.0.0.1:\${CLIENT_HOST_PORT:-8080}/api/health\""

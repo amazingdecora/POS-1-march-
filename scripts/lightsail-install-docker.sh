@@ -23,4 +23,4 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 sudo usermod -aG docker "$USER"
 echo ""
 echo "Docker installed. Log out and back in (or run: newgrp docker) so group 'docker' applies."
-echo "Then: git clone <your-repo> && cd POS-1-march- && cp .env.deploy.example .env && nano .env && ./scripts/deploy-on-server.sh"
+echo "Then: git clone <your-repo> && cd POS-1-march- && cp deploy.env.example .env && nano .env && ./scripts/deploy-on-server.sh"

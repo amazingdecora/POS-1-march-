@@ -1,4 +1,4 @@
-# Deploy this Docker Compose stack to an existing Ubuntu + Docker host (e.g. AWS Lightsail).
+# Deploy prebuilt GHCR images to an existing Ubuntu + Docker host (e.g. AWS Lightsail).
 #
 # Required GitHub repository secrets:
 #   LIGHTSAIL_HOST     — Public IPv4 or DNS name of the instance
@@ -8,6 +8,8 @@
 # Optional:
 #   LIGHTSAIL_SSH_PORT — Default 22
 #   LIGHTSAIL_APP_PATH — Absolute path on the server where the repo was cloned (e.g. /home/ubuntu/pos/POS-1-march-)
+#   GHCR_USERNAME      — Username/org allowed to pull GHCR packages (often your GitHub username)
+#   GHCR_TOKEN         — Token with read:packages scope if repo/packages are private
 
 name: Deploy to Lightsail
 
@@ -38,10 +40,13 @@ jobs:
               APP_PATH="$HOME/pos/POS-1-march-"
             fi
             if [ ! -d "$APP_PATH/.git" ]; then
-              echo "ERROR: $APP_PATH is not a git clone. On the server once: git clone <repo> $APP_PATH && cp .env.deploy.example $APP_PATH/.env"
+              echo "ERROR: $APP_PATH is not a git clone. On the server once: git clone <repo> $APP_PATH && cp deploy.env.example $APP_PATH/.env"
               exit 1
             fi
             cd "$APP_PATH"
+            if [ -n "${{ secrets.GHCR_USERNAME }}" ] && [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
+              echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            fi
             git fetch origin
             if git show-ref --verify --quiet refs/remotes/origin/main; then
               git checkout main
@@ -54,8 +59,10 @@ jobs:
               exit 1
             fi
             if docker compose version >/dev/null 2>&1; then
-              docker compose up --build -d
+              docker compose -f docker-compose.prod.yml pull
+              docker compose -f docker-compose.prod.yml up -d
             else
-              docker-compose up --build -d
+              docker-compose -f docker-compose.prod.yml pull
+              docker-compose -f docker-compose.prod.yml up -d
             fi
-            docker compose ps 2>/dev/null || docker-compose ps
+            docker compose -f docker-compose.prod.yml ps 2>/dev/null || docker-compose -f docker-compose.prod.yml ps

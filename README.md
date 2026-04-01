@@ -39,7 +39,12 @@ Use **Git Bash** or **WSL** on Windows to run the `.sh` file.
 
 ### Deploy to AWS Lightsail
 
-See **[docs/deploy-lightsail.md](docs/deploy-lightsail.md)** for one-time instance setup, `.env` on the server, and the **GitHub Actions** pipeline (`.github/workflows/deploy-lightsail.yml`) that runs `git pull` + `docker compose up --build -d` over SSH.
+See **[docs/deploy-lightsail.md](docs/deploy-lightsail.md)** for:
+
+- one-time Lightsail setup,
+- `.env` on the server,
+- **GHCR** image publishing via **`.github/workflows/publish-ghcr.yml`**,
+- and the deploy workflow **`.github/workflows/deploy-lightsail.yml`** that runs `git pull` + `docker compose -f docker-compose.prod.yml pull` + `up -d` over SSH.
 
 ### Docker not starting?
 
