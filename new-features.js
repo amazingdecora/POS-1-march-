@@ -397,9 +397,23 @@ document.getElementById('orderForm').addEventListener('submit', async (e) => {
     }
 
     // Create details string for compatibility
-    const detailsText = itemsList.map(item =>
-        `${item.name} * ${item.quantity} @ Rs ${item.price.toFixed(2)} = Rs ${item.total.toFixed(2)}`
+    let detailsText = itemsList.map(item =>
+        `${item.name} * ${item.quantity} = Rs ${item.total.toFixed(2)}`
     ).join('\n');
+
+    const discountEl = document.getElementById('orderDiscount');
+    let discount = 0;
+    if (discountEl && discountEl.value) {
+        discount = parseFloat(discountEl.value) || 0;
+    }
+
+    let originalTotal = orderTotal;
+    if (discount > 0 && discount <= 100) {
+        orderTotal = orderTotal - (orderTotal * (discount / 100));
+        detailsText += `\n\nSubtotal: Rs ${originalTotal.toFixed(2)}`;
+        detailsText += `\nDiscount: ${discount}%`;
+        detailsText += `\nTotal: Rs ${orderTotal.toFixed(2)}`;
+    }
 
     const orderData = {
         customerName: customerName,
@@ -408,6 +422,8 @@ document.getElementById('orderForm').addEventListener('submit', async (e) => {
         details: detailsText,
         items: itemsList,
         orderTotal: orderTotal,
+        discount: discount,
+        originalTotal: originalTotal,
         paymentStatus: document.getElementById('payStatus').value,
         status: 'pending',
         date: new Date().toLocaleDateString(),
@@ -416,8 +432,6 @@ document.getElementById('orderForm').addEventListener('submit', async (e) => {
 
     try {
         await db.orders.add(orderData);
-        showToast('Order created successfully!');
-
         // Reset form
         e.target.reset();
         selectedItems = {};
@@ -425,6 +439,36 @@ document.getElementById('orderForm').addEventListener('submit', async (e) => {
 
         updateDashboardStats();
         if (currentTab === 'workshop') renderWorkshopOrders();
+
+        // --- WhatsApp Logic ---
+        const wa1 = localStorage.getItem('workshop_wa1') || '';
+        const wa2 = localStorage.getItem('workshop_wa2') || '';
+        if (wa1 || wa2) {
+            let itemStr = itemsList.map(i => `${i.name} x ${i.quantity} = Rs ${i.total.toFixed(2)}`).join('%0A');
+            let discountStr = '';
+            if (discount > 0) discountStr = `%0A%0ASubtotal: Rs ${originalTotal.toFixed(2)}%0ADiscount: ${discount}%25`;
+            let text = `New Order!%0A*Customer:* ${customerName}%0A*Address:* ${customerAddress}%0A*Phone:* ${customerPhone}%0A%0A*Items:*%0A${itemStr}${discountStr}%0A*Total Value:* Rs ${orderTotal.toFixed(2)}%0A*Payment Status:* ${orderData.paymentStatus}`;
+
+            let linksHtml = '';
+            if (wa1) {
+                linksHtml += `<a href="https://wa.me/${wa1}?text=${text}" target="_blank" class="w-full mb-3 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl block text-center transition" onclick="Swal.close()"><i class="fab fa-whatsapp mr-2"></i>Send to ${wa1}</a>`;
+            }
+            if (wa2) {
+                linksHtml += `<a href="https://wa.me/${wa2}?text=${text}" target="_blank" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl block text-center transition" onclick="Swal.close()"><i class="fab fa-whatsapp mr-2"></i>Send to ${wa2}</a>`;
+            }
+
+            Swal.fire({
+                title: 'Order Created!',
+                html: `<p class="mb-4 text-gray-600">Would you like to notify the workshop?</p>${linksHtml}`,
+                showConfirmButton: false,
+                showCancelButton: true,
+                cancelButtonText: 'Skip',
+                focusCancel: true
+            });
+        } else {
+            showToast('Order created successfully!');
+        }
+
     } catch (err) {
         showToast('Error creating order', 'error');
         console.error(err);
@@ -691,6 +735,16 @@ async function viewOrderDetails(id) {
                             <td class="p-2 text-right font-bold">${formatCurrency(item.total)}</td>
                         </tr>
                     `).join('')}
+                    ${order.discount ? `
+                        <tr class="border-t-2 border-gray-200 bg-gray-50">
+                            <td colspan="3" class="p-2 text-right font-medium">Subtotal</td>
+                            <td class="p-2 text-right font-bold">${formatCurrency(order.originalTotal)}</td>
+                        </tr>
+                        <tr class="bg-orange-50">
+                            <td colspan="3" class="p-2 text-right font-bold text-orange-600">Discount (${order.discount}%)</td>
+                            <td class="p-2 text-right font-bold text-orange-600">-${formatCurrency(order.originalTotal - order.orderTotal)}</td>
+                        </tr>
+                    ` : ''}
                 </tbody>
             </table>
         `;
@@ -699,7 +753,7 @@ async function viewOrderDetails(id) {
     }
 
     container.innerHTML = `
-        <div class="space-y-4">
+        < div class="space-y-4" >
             <div class="flex justify-between items-start bg-green-50 p-4 rounded-lg border border-green-100">
                 <div>
                     <h3 class="font-bold text-lg text-green-900">${order.customerName}</h3>
@@ -724,8 +778,8 @@ async function viewOrderDetails(id) {
                     <i class="fas fa-print mr-2"></i> Print Invoice
                 </button>
             </div>
-        </div>
-    `;
+        </div >
+        `;
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -818,7 +872,7 @@ function printChart() {
     const canvas = document.getElementById('salesChart');
     const win = window.open('', 'Print Chart', 'height=600,width=800');
     win.document.write(`
-        <html>
+        < html >
             <head>
                 <title>Sales Analytics Chart</title>
                 <style>
@@ -834,8 +888,8 @@ function printChart() {
                 window.onload = function() { window.print(); }
             </script>
         </body>
-        </html>
-    `);
+        </html >
+        `);
     win.document.close();
 }
 
@@ -905,7 +959,7 @@ async function openAttendanceReportModal() {
     const formatDate = (d) => {
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
-        return `${d.getFullYear()}-${month}-${day}`;
+        return `${d.getFullYear()} -${month} -${day} `;
     };
 
     document.getElementById('attendanceFromDate').value = formatDate(firstDay);
@@ -950,7 +1004,7 @@ async function renderAttendanceReport() {
     });
 
     container.innerHTML = `
-        <table class="w-full text-sm text-left">
+        < table class="w-full text-sm text-left" >
             <thead class="bg-blue-100 text-blue-800">
                 <tr>
                     <th class="p-3 rounded-l-lg">Employee Name</th>
@@ -965,8 +1019,8 @@ async function renderAttendanceReport() {
                     </tr>
                 `).join('')}
             </tbody>
-        </table>
-    `;
+        </table >
+        `;
 }
 
 async function printAttendanceReport() {
@@ -993,7 +1047,7 @@ async function printAttendanceReport() {
 
     const printArea = document.getElementById('printArea');
     printArea.innerHTML = `
-        <div class="order-card-print">
+        < div class="order-card-print" >
             <h2 style="text-align:center; margin-bottom: 5px;">AMAZING DECORA</h2>
             <h4 style="text-align:center; margin-top: 0; color: #555;">ATTENDANCE SUMMARY</h4>
             <p style="text-align:center; font-size: 0.8em; color: #777;">Range: ${fromStr || 'All'} to ${toStr || 'All'}</p>
@@ -1054,7 +1108,7 @@ function printExpenseChart() {
     const canvas = document.getElementById('expenseChart');
     const win = window.open('', 'Print Chart', 'height=600,width=800');
     win.document.write(`
-        <html>
+        < html >
             <head>
                 <title>Expense Analytics Chart</title>
                 <style>
@@ -1070,8 +1124,8 @@ function printExpenseChart() {
                 window.onload = function() { window.print(); }
             </script>
         </body>
-        </html>
-    `);
+        </html >
+        `);
     win.document.close();
 }
 
@@ -1129,3 +1183,243 @@ async function renderExpenseChart() {
         }
     });
 }
+
+// --- NEW FEATURES FOR CHARTS & CLEAR HISTORY ---
+
+// 1. Order Chart
+let orderChartInstance = null;
+
+function toggleOrderChart() {
+    const listContainer = document.getElementById('completedOrdersList');
+    const chartContainer = document.getElementById('orderChartContainer');
+
+    if (chartContainer.classList.contains('hidden')) {
+        listContainer.classList.add('hidden');
+        chartContainer.classList.remove('hidden');
+        renderOrderChart();
+    } else {
+        chartContainer.classList.add('hidden');
+        listContainer.classList.remove('hidden');
+    }
+}
+
+async function renderOrderChart() {
+    const fromDateStr = document.getElementById('orderReportFrom').value;
+    const toDateStr = document.getElementById('orderReportTo').value;
+    const canvas = document.getElementById('orderChart');
+
+    let orders = await db.orders.where('status').equals('completed').toArray();
+
+    if (fromDateStr || toDateStr) {
+        const from = fromDateStr ? new Date(fromDateStr).getTime() : 0;
+        const to = toDateStr ? new Date(toDateStr).getTime() + 86399999 : Infinity;
+        orders = orders.filter(o => {
+            let time = o.completedTimestamp || o.timestamp;
+            if (!time && o.date) time = new Date(o.date).getTime();
+            return time >= from && time <= to;
+        });
+    }
+
+    const orderSummary = {};
+    orders.forEach(o => {
+        let d = o.date;
+        if (!orderSummary[d]) orderSummary[d] = 0;
+        orderSummary[d] += parseFloat(o.orderTotal || 0);
+    });
+
+    // sort the dates
+    const labels = Object.keys(orderSummary).sort((a, b) => new Date(a) - new Date(b));
+    const data = labels.map(l => orderSummary[l]);
+
+    if (orderChartInstance) {
+        orderChartInstance.destroy();
+    }
+
+    orderChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Completed Order Amount (Rs)',
+                data: data,
+                backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 2,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grace: '5%'
+                }
+            }
+        }
+    });
+}
+
+async function clearCompletedOrdersHistory() {
+    const result = await Swal.fire({
+        title: 'Clear History?',
+        text: `Are you sure you want to clear all completed orders history ? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Yes, Clear'
+    });
+
+    if (result.isConfirmed) {
+        const orders = await db.orders.where('status').equals('completed').toArray();
+        const ids = orders.map(o => o.id);
+        await db.orders.bulkDelete(ids);
+        showToast('Completed Orders History Cleared');
+        renderCompletedOrders();
+        updateDashboardStats();
+    }
+}
+
+// 2. Attendance Chart
+let attendanceChartInstance = null;
+
+function toggleAttendanceChart() {
+    const listContainer = document.getElementById('attendanceReportList');
+    const chartContainer = document.getElementById('attendanceChartContainer');
+
+    if (chartContainer.classList.contains('hidden')) {
+        listContainer.classList.add('hidden');
+        chartContainer.classList.remove('hidden');
+        renderAttendanceChart();
+    } else {
+        chartContainer.classList.add('hidden');
+        listContainer.classList.remove('hidden');
+    }
+}
+
+async function renderAttendanceChart() {
+    const fromStr = document.getElementById('attendanceFromDate').value;
+    const toStr = document.getElementById('attendanceToDate').value;
+    const canvas = document.getElementById('attendanceChart');
+
+    let records = await db.attendance.toArray();
+
+    if (fromStr || toStr) {
+        const fromDate = fromStr ? new Date(fromStr).getTime() : 0;
+        const toDate = toStr ? new Date(toStr).getTime() + 86399999 : Infinity;
+        records = records.filter(r => {
+            let time = r.timestamp;
+            if (!time && r.date) time = new Date(r.date).getTime();
+            return time >= fromDate && time <= toDate;
+        });
+    }
+
+    const counts = {};
+    records.forEach(r => {
+        counts[r.employeeName] = (counts[r.employeeName] || 0) + 1;
+    });
+
+    const labels = Object.keys(counts);
+    const data = Object.values(counts);
+
+    if (attendanceChartInstance) {
+        attendanceChartInstance.destroy();
+    }
+
+    attendanceChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Days Present',
+                data: data,
+                backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grace: '5%',
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+async function clearAttendanceHistory() {
+    const result = await Swal.fire({
+        title: 'Clear History?',
+        text: `Are you sure you want to clear all attendance history ? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Yes, Clear'
+    });
+
+    if (result.isConfirmed) {
+        await db.attendance.clear();
+        showToast('Attendance History Cleared');
+        renderAttendanceReport();
+        updateDashboardStats();
+    }
+}
+
+async function clearExpensesHistory() {
+    const result = await Swal.fire({
+        title: 'Clear History?',
+        text: `Are you sure you want to clear all expenses history ? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Yes, Clear'
+    });
+
+    if (result.isConfirmed) {
+        await db.expenses.clear();
+        showToast('Expenses History Cleared');
+        renderExpenseReports();
+        renderExpenses();
+        updateDashboardStats();
+    }
+}
+
+// --- WHATSAPP SETTINGS ---
+function openWNSettingsModal() {
+    const modal = document.getElementById('waSettingsModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('waNumber1').value = localStorage.getItem('workshop_wa1') || '';
+    document.getElementById('waNumber2').value = localStorage.getItem('workshop_wa2') || '';
+}
+
+function closeWNSettingsModal() {
+    const modal = document.getElementById('waSettingsModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('waSettingsForm')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const wa1 = document.getElementById('waNumber1').value.trim();
+        const wa2 = document.getElementById('waNumber2').value.trim();
+
+        if (wa1) localStorage.setItem('workshop_wa1', wa1);
+        else localStorage.removeItem('workshop_wa1');
+
+        if (wa2) localStorage.setItem('workshop_wa2', wa2);
+        else localStorage.removeItem('workshop_wa2');
+
+        showToast('WhatsApp Numbers Saved!', 'success');
+        closeWNSettingsModal();
+    });
+});

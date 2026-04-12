@@ -161,7 +161,17 @@ async function updateOrderTotal() {
         total += quantity * price;
     }
 
-    const totalEl = document.getElementById('orderTotalValue') || document.getElementById('orderTotalValue');
+    const discountEl = document.getElementById('orderDiscount');
+    let discount = 0;
+    if (discountEl && discountEl.value) {
+        discount = parseFloat(discountEl.value) || 0;
+    }
+
+    if (discount > 0 && discount <= 100) {
+        total = total - (total * (discount / 100));
+    }
+
+    const totalEl = document.getElementById('orderTotalValue');
     if (totalEl) totalEl.innerText = formatCurrency(total);
 }
 
